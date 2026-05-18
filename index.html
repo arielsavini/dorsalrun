@@ -220,6 +220,83 @@
     .color-swatch:hover { transform: scale(1.15); }
     .color-swatch.active { border-color: #fff; transform: scale(1.15); }
 
+    /* ── IMAGE / LOGO UPLOAD ── */
+    .btn-upload-img {
+      width: 100%;
+      padding: 11px 14px;
+      border-radius: 10px;
+      border: 2px dashed var(--border);
+      background: var(--surface2);
+      color: var(--muted);
+      font-size: 12px;
+      cursor: pointer;
+      font-family: 'Space Mono', monospace;
+      transition: border-color .18s, color .18s;
+      text-align: center;
+      letter-spacing: .5px;
+    }
+    .btn-upload-img:hover { border-color: var(--accent); color: var(--accent); }
+    .img-preview-row {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      margin: 10px 0 8px;
+    }
+    #imgThumb {
+      width: 68px; height: 68px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1.5px solid var(--border);
+      flex-shrink: 0;
+    }
+    .img-actions { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+    .logo-toggle { cursor: pointer; }
+    .logo-toggle input[type=checkbox] { display: none; }
+    .logo-toggle-label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      color: var(--muted);
+      font-family: 'Space Mono', monospace;
+      padding: 7px 10px;
+      border-radius: 8px;
+      border: 1.5px solid var(--border);
+      background: var(--surface2);
+      cursor: pointer;
+      transition: all .18s;
+      user-select: none;
+      line-height: 1.3;
+    }
+    .logo-toggle input:checked + .logo-toggle-label {
+      border-color: var(--accent);
+      color: var(--accent2, #fff);
+      background: rgba(0,201,107,.13);
+    }
+    .chk-icon { font-size: 12px; opacity: .25; transition: opacity .15s; font-style: normal; }
+    .logo-toggle input:checked + .logo-toggle-label .chk-icon { opacity: 1; }
+    .btn-clear-img {
+      font-size: 11px;
+      color: var(--muted);
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-family: 'Space Mono', monospace;
+      padding: 2px 0;
+      text-align: left;
+      transition: color .15s;
+    }
+    .btn-clear-img:hover { color: #e63946; }
+    .extracted-label {
+      font-size: 10px;
+      color: var(--muted);
+      font-family: 'Space Mono', monospace;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 7px;
+    }
+    .no-colors-msg { font-size: 11px; color: var(--muted); font-family: 'Space Mono', monospace; }
+
     footer {
       text-align: center;
       padding: 18px;
@@ -307,6 +384,27 @@
       </div>
     </div>
 
+    <!-- ── IMAGEN / LOGO ── -->
+    <div class="card">
+      <div class="card-label">🖼️ Logo de la carrera (opcional)</div>
+      <input type="file" id="imgUpload" accept="image/*" style="display:none" />
+      <button class="btn-upload-img" id="btnUpload">📁 Subir imagen o logo de la carrera…</button>
+      <div id="imgPreviewArea" style="display:none">
+        <div class="img-preview-row">
+          <img id="imgThumb" alt="preview" />
+          <div class="img-actions">
+            <label class="logo-toggle">
+              <input type="checkbox" id="chkLogo" />
+              <span class="logo-toggle-label"><em class="chk-icon">✔</em>&nbsp;Es un logo — agregar al dorsal</span>
+            </label>
+            <button class="btn-clear-img" id="btnClearImg">✕ Quitar imagen</button>
+          </div>
+        </div>
+        <div class="extracted-label">🎨 Colores de la imagen</div>
+        <div class="color-row" id="extractedColors"></div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -321,7 +419,9 @@ let state = {
   nombre: 'ARIEL SAVINI',
   evento: 'TRAIL DE LOS ANDES',
   template: 'trail',
-  accent: '#00c96b'
+  accent: '#00c96b',
+  logoImg: null,
+  showLogo: false
 };
 
 const CANVAS_W = 400;
@@ -631,10 +731,66 @@ function fillText(ctx, text, x, y, maxWidth) {
   ctx.font = saved;
 }
 
+// ── LOGO ON DORSAL ──
+function drawLogo(ctx, W, H, img) {
+  const maxW = 95;
+  const maxH = 60;
+  const ratio = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
+  const lw = img.naturalWidth * ratio;
+  const lh = img.naturalHeight * ratio;
+  const x = W - lw - 14;
+  const y = H - lh - 22;
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.55)';
+  ctx.shadowBlur = 10;
+  ctx.fillStyle = 'rgba(0,0,0,0.28)';
+  ctx.beginPath();
+  ctx.roundRect(x - 7, y - 6, lw + 14, lh + 12, 8);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.globalAlpha = 0.92;
+  ctx.drawImage(img, x, y, lw, lh);
+  ctx.restore();
+}
+
+// ── COLOR EXTRACTION ──
+function extractColors(img, count = 7) {
+  const SIZE = 80;
+  const c = document.createElement('canvas');
+  c.width = SIZE; c.height = SIZE;
+  const cx = c.getContext('2d');
+  cx.drawImage(img, 0, 0, SIZE, SIZE);
+  const data = cx.getImageData(0, 0, SIZE, SIZE).data;
+  const buckets = {};
+  for (let i = 0; i < data.length; i += 16) { // cada 4 píxeles
+    const a = data[i + 3];
+    if (a < 128) continue;
+    const r = Math.round(data[i]   / 24) * 24;
+    const g = Math.round(data[i+1] / 24) * 24;
+    const b = Math.round(data[i+2] / 24) * 24;
+    const bright = (r + g + b) / 3;
+    if (bright > 235 || bright < 20) continue; // skip near-white / near-black
+    const sat = Math.max(r,g,b) - Math.min(r,g,b);
+    if (sat < 28) continue; // skip grey/neutral
+    const key = `${r},${g},${b}`;
+    buckets[key] = (buckets[key] || 0) + 1;
+  }
+  return Object.entries(buckets)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, count)
+    .map(([key]) => {
+      const [r, g, b] = key.split(',').map(Number);
+      return '#' + r.toString(16).padStart(2,'0')
+                 + g.toString(16).padStart(2,'0')
+                 + b.toString(16).padStart(2,'0');
+    });
+}
+
 // ── DRAW ──
 function draw() {
   ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
   templates[state.template].draw(ctx, CANVAS_W, CANVAS_H, state);
+  if (state.showLogo && state.logoImg) drawLogo(ctx, CANVAS_W, CANVAS_H, state.logoImg);
 }
 
 // ── THUMBNAILS ──
@@ -645,6 +801,9 @@ function drawThumbnail(tplKey) {
   tc.save();
   tc.scale(TW / CANVAS_W, TH / CANVAS_H);
   templates[tplKey].draw(tc, CANVAS_W, CANVAS_H, state);
+  if (state.showLogo && state.logoImg && tplKey === state.template) {
+    drawLogo(tc, CANVAS_W, CANVAS_H, state.logoImg);
+  }
   tc.restore();
 }
 
@@ -683,6 +842,89 @@ document.getElementById('colorRow').addEventListener('click', e => {
   document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
   sw.classList.add('active');
   state.accent = sw.dataset.color;
+  draw();
+  drawAllThumbnails();
+});
+
+// ── IMAGE / LOGO HANDLERS ──
+const imgUpload    = document.getElementById('imgUpload');
+const btnUpload    = document.getElementById('btnUpload');
+const imgPreviewArea = document.getElementById('imgPreviewArea');
+const imgThumb     = document.getElementById('imgThumb');
+const chkLogo      = document.getElementById('chkLogo');
+const btnClearImg  = document.getElementById('btnClearImg');
+const extractedColors = document.getElementById('extractedColors');
+
+btnUpload.addEventListener('click', () => imgUpload.click());
+
+imgUpload.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      // thumbnail preview
+      imgThumb.src = ev.target.result;
+      state.logoImg = img;
+
+      // extract colors
+      const colors = extractColors(img);
+      extractedColors.innerHTML = '';
+      if (colors.length === 0) {
+        extractedColors.innerHTML = '<span class="no-colors-msg">No se detectaron colores vivos.</span>';
+      } else {
+        colors.forEach((hex, i) => {
+          const sw = document.createElement('div');
+          sw.className = 'color-swatch' + (i === 0 ? ' active' : '');
+          sw.dataset.color = hex;
+          sw.style.cssText = `background:${hex}`;
+          if (i === 0) {
+            // auto-apply first extracted color as accent
+            document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+            sw.classList.add('active');
+            state.accent = hex;
+          }
+          extractedColors.appendChild(sw);
+        });
+        // delegate click to extractedColors row
+      }
+
+      imgPreviewArea.style.display = '';
+      draw();
+      drawAllThumbnails();
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+  imgUpload.value = ''; // allow re-upload same file
+});
+
+// clicks on extracted color swatches
+extractedColors.addEventListener('click', e => {
+  const sw = e.target.closest('.color-swatch');
+  if (!sw) return;
+  document.querySelectorAll('#colorRow .color-swatch, #extractedColors .color-swatch')
+    .forEach(s => s.classList.remove('active'));
+  sw.classList.add('active');
+  state.accent = sw.dataset.color;
+  draw();
+  drawAllThumbnails();
+});
+
+chkLogo.addEventListener('change', () => {
+  state.showLogo = chkLogo.checked;
+  draw();
+  drawAllThumbnails();
+});
+
+btnClearImg.addEventListener('click', () => {
+  state.logoImg = null;
+  state.showLogo = false;
+  chkLogo.checked = false;
+  imgThumb.src = '';
+  extractedColors.innerHTML = '';
+  imgPreviewArea.style.display = 'none';
   draw();
   drawAllThumbnails();
 });
