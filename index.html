@@ -287,6 +287,21 @@
       transition: color .15s;
     }
     .btn-clear-img:hover { color: #e63946; }
+    .frase-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    .frase-btn {
+      padding: 5px 13px;
+      border-radius: 20px;
+      border: 1.5px solid var(--border);
+      background: var(--surface2);
+      color: var(--muted);
+      font-size: 11px;
+      font-family: 'Space Mono', monospace;
+      cursor: pointer;
+      transition: border-color .15s, color .15s, background .15s;
+      letter-spacing: .5px;
+    }
+    .frase-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .frase-btn.active { border-color: var(--accent); background: rgba(0,201,107,.15); color: var(--accent); }
     .extracted-label {
       font-size: 10px;
       color: var(--muted);
@@ -369,6 +384,13 @@
           <div class="tpl-name">Clásico</div>
         </div>
       </div>
+      <div class="card-label" style="margin-top:14px;margin-bottom:6px">🏷️ Frase</div>
+      <div class="frase-row" id="fraseRow">
+        <button class="frase-btn active" data-frase="TRAIL RUNNER">TRAIL</button>
+        <button class="frase-btn" data-frase="RUNNING">RUNNING</button>
+        <button class="frase-btn" data-frase="ULTRA RUNNER">ULTRA</button>
+        <button class="frase-btn" data-frase="DUATLÓN">DUATLÓN</button>
+      </div>
     </div>
 
     <div class="card">
@@ -420,6 +442,7 @@ let state = {
   evento: 'TRAIL DE LOS ANDES',
   template: 'trail',
   accent: '#00c96b',
+  frase: 'TRAIL RUNNER',
   logoImg: null,
   showLogo: false
 };
@@ -508,12 +531,14 @@ const templates = {
       ctx.letterSpacing = '2px';
       fillText(ctx, s.nombre.toUpperCase() || 'TU NOMBRE', W / 2, H * 0.84, W - 60);
 
-      // Logo mark
-      ctx.fillStyle = hexAlpha(acc, 0.6);
-      ctx.font = 'bold 11px Inter, sans-serif';
-      ctx.letterSpacing = '1px';
-      ctx.textAlign = 'center';
-      ctx.fillText('🏔️ TRAIL RUNNER', W / 2, H * 0.94);
+      // Frase
+      if (!(s.showLogo && s.logoImg)) {
+        ctx.fillStyle = hexAlpha(acc, 0.6);
+        ctx.font = 'bold 11px Inter, sans-serif';
+        ctx.letterSpacing = '1px';
+        ctx.textAlign = 'center';
+        ctx.fillText(s.frase || 'TRAIL RUNNER', W / 2, H * 0.94);
+      }
     }
   },
 
@@ -587,10 +612,13 @@ const templates = {
       ctx.letterSpacing = '2px';
       fillText(ctx, s.nombre.toUpperCase() || 'TU NOMBRE', W / 2, H * 0.83, W - 60);
 
-      ctx.fillStyle = hexAlpha(acc, 0.7);
-      ctx.font = 'bold 11px Inter, sans-serif';
-      ctx.letterSpacing = '1px';
-      ctx.fillText('🏙️ ROAD RUNNER', W / 2, H * 0.93);
+      if (!(s.showLogo && s.logoImg)) {
+        ctx.fillStyle = hexAlpha(acc, 0.7);
+        ctx.font = 'bold 11px Inter, sans-serif';
+        ctx.letterSpacing = '1px';
+        ctx.textAlign = 'center';
+        ctx.fillText(s.frase || 'RUNNING', W / 2, H * 0.93);
+      }
     }
   },
 
@@ -645,10 +673,13 @@ const templates = {
       ctx.letterSpacing = '3px';
       fillText(ctx, s.nombre.toUpperCase() || 'TU NOMBRE', W / 2, H * 0.83, W - 60);
 
-      ctx.fillStyle = hexAlpha(acc, 0.7);
-      ctx.font = 'bold 11px Inter, sans-serif';
-      ctx.letterSpacing = '1px';
-      ctx.fillText('⚡ ULTRA RUNNER', W / 2, H * 0.93);
+      if (!(s.showLogo && s.logoImg)) {
+        ctx.fillStyle = hexAlpha(acc, 0.7);
+        ctx.font = 'bold 11px Inter, sans-serif';
+        ctx.letterSpacing = '1px';
+        ctx.textAlign = 'center';
+        ctx.fillText(s.frase || 'ULTRA RUNNER', W / 2, H * 0.93);
+      }
     }
   },
 
@@ -703,10 +734,13 @@ const templates = {
       ctx.letterSpacing = '2px';
       fillText(ctx, s.nombre.toUpperCase() || 'TU NOMBRE', W / 2, H * 0.83, W - 60);
 
-      ctx.fillStyle = hexAlpha(acc, 0.6);
-      ctx.font = 'bold 11px Inter, sans-serif';
-      ctx.letterSpacing = '1px';
-      ctx.fillText('🏅 RUNNING', W / 2, H * 0.93);
+      if (!(s.showLogo && s.logoImg)) {
+        ctx.fillStyle = hexAlpha(acc, 0.6);
+        ctx.font = 'bold 11px Inter, sans-serif';
+        ctx.letterSpacing = '1px';
+        ctx.textAlign = 'center';
+        ctx.fillText(s.frase || 'RUNNING', W / 2, H * 0.93);
+      }
     }
   }
 };
@@ -733,21 +767,15 @@ function fillText(ctx, text, x, y, maxWidth) {
 
 // ── LOGO ON DORSAL ──
 function drawLogo(ctx, W, H, img) {
-  const maxW = 95;
-  const maxH = 60;
+  const maxW = 120;
+  const maxH = 42;
   const ratio = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
   const lw = img.naturalWidth * ratio;
   const lh = img.naturalHeight * ratio;
-  const x = W - lw - 14;
-  const y = H - lh - 22;
+  // Centered horizontally, just below runner name (in the frase slot)
+  const x = (W - lw) / 2;
+  const y = H * 0.878;
   ctx.save();
-  ctx.shadowColor = 'rgba(0,0,0,0.55)';
-  ctx.shadowBlur = 10;
-  ctx.fillStyle = 'rgba(0,0,0,0.28)';
-  ctx.beginPath();
-  ctx.roundRect(x - 7, y - 6, lw + 14, lh + 12, 8);
-  ctx.fill();
-  ctx.shadowBlur = 0;
   ctx.globalAlpha = 0.92;
   ctx.drawImage(img, x, y, lw, lh);
   ctx.restore();
@@ -823,6 +851,17 @@ document.getElementById('inpNombre').addEventListener('input', e => {
 document.getElementById('inpEvento').addEventListener('input', e => {
   state.evento = e.target.value;
   draw();
+});
+
+// Frase
+document.getElementById('fraseRow').addEventListener('click', e => {
+  const btn = e.target.closest('.frase-btn');
+  if (!btn) return;
+  document.querySelectorAll('.frase-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  state.frase = btn.dataset.frase;
+  draw();
+  drawAllThumbnails();
 });
 
 // Templates
