@@ -167,11 +167,12 @@
       transition: border-color .15s;
     }
     .field input:focus { border-color: var(--accent); }
-    .field input[type="number"] {
+    #inpNumero {
       font-family: 'Space Mono', monospace;
       font-size: 20px;
       font-weight: 700;
       letter-spacing: 2px;
+      text-transform: uppercase;
     }
 
     /* templates */
@@ -352,7 +353,7 @@
       <div class="card-label">🔢 Número y nombre</div>
       <div class="field">
         <label>Número de dorsal</label>
-        <input type="number" id="inpNumero" value="42" min="1" max="99999" maxlength="5" />
+        <input type="text" id="inpNumero" value="42" maxlength="7" placeholder="42" />
       </div>
       <div class="field">
         <label>Tu nombre</label>
@@ -841,7 +842,8 @@ function drawAllThumbnails() {
 
 // ── INPUTS ──
 document.getElementById('inpNumero').addEventListener('input', e => {
-  state.numero = e.target.value.slice(0, 5);
+  state.numero = e.target.value.slice(0, 7).toUpperCase();
+  e.target.value = state.numero;
   draw();
 });
 document.getElementById('inpNombre').addEventListener('input', e => {
